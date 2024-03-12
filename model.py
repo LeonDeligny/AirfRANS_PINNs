@@ -10,6 +10,9 @@ NU = 1.56e-5
 C = 346.1
 P_ref = 1.013e5
 
+# iteration to switch from Adam to L-BFGS
+it_Adam_to_LBGFS = 0
+
 class PhysicsInformedNN(torch.nn.Module):
     def __init__(self, layers, coef_norm, u, v, p, nut, x, y, x_normal, y_normal, sdf, gamma_1, gamma_2, gamma_3):
         super(PhysicsInformedNN, self).__init__()
@@ -20,9 +23,6 @@ class PhysicsInformedNN(torch.nn.Module):
         # normal to sdf
         self.x_normal = torch.tensor(x_normal).float()
         self.y_normal = torch.tensor(y_normal).float()  
-
-        # turbulent kinematic viscosity
-        # self.nut = torch.tensor(nut, requires_grad=True).float()
 
         # signed distance function
         self.sdf = torch.tensor(sdf).float()
@@ -55,7 +55,8 @@ class PhysicsInformedNN(torch.nn.Module):
         
         # self.optimizer = torch.optim.Adam([{'params': self.model.parameters()}], lr=0.01)        
         # self.optimizer = torch.optim.LBFGS(self.model.parameters())
-        self.optimizer = torch.optim.LBFGS(self.model.parameters(), lr=1, max_iter=20, history_size=100)        
+        self.adam_optimizer = torch.optim.Adam(self.model.parameters(), lr=1e-3)
+        self.lbfgs_optimizer = torch.optim.LBFGS(self.model.parameters(), lr=1e-4, max_iter=20, history_size=100)        
         
         self.writer = SummaryWriter(log_dir=f"logs/{datetime.now().strftime('%Y%m%d-%H%M%S')}")
 
@@ -89,6 +90,7 @@ class PhysicsInformedNN(torch.nn.Module):
         Laminar flow without turbulent kinematic viscosity (Navier-Stockes Equations)
         '''
 
+        '''
         u_xx = grad(u_x, x, grad_outputs=torch.ones_like(u_x), create_graph=True)[0]
         u_yy = grad(u_y, y, grad_outputs=torch.ones_like(u_y), create_graph=True)[0]
         u_xy = grad(u_y, x, grad_outputs=torch.ones_like(u_y), create_graph=True)[0]
@@ -99,6 +101,7 @@ class PhysicsInformedNN(torch.nn.Module):
 
         f_u = (u * u_x + v * u_y) + p_x - ( NU * (u_xx + u_yy + u_xx + v_yx) )
         f_v = (u * v_x + v * v_y) + p_y - ( NU * (v_xx + v_yy + u_xy + v_xx) )
+        '''
 
         '''
         Laminar flow with turbulent kinematic viscosity (28) of https://doi.org/10.48550/arXiv.2212.07564.
@@ -137,6 +140,7 @@ class PhysicsInformedNN(torch.nn.Module):
         u_pred, v_pred, p_pred, nut_pred, f_u_pred, f_v_pred, ic_pred = self.net_NS(x, y, x_normal, y_normal, sdf, gamma_1, gamma_2, gamma_3)
         
         f_u_loss, f_v_loss = self.loss_func(f_u_pred, torch.zeros_like(f_u_pred)), self.loss_func(f_v_pred, torch.zeros_like(f_v_pred))
+        
         rans_loss = f_u_loss + f_v_loss # Reynold-Average NS loss
 
         aerofoil_bc =   ( ((u_pred * (coef_norm[3][0] + 1e-8)) + coef_norm[2][0]) \
@@ -174,7 +178,7 @@ class PhysicsInformedNN(torch.nn.Module):
         self.temp_losses = None
 
         def closure():
-            self.optimizer.zero_grad()
+            self.lbfgs_optimizer.zero_grad()
             # Compute the forward pass and losses
             total_loss, rans_loss, aerofoil_bc_loss, inlet_bc_loss,ic_loss, u_loss, v_loss, p_loss, nut_loss = self.forward(self.coef_norm, self.x, self.y, self.x_normal, self.y_normal, self.sdf, self.gamma_1, self.gamma_2, self.gamma_3)
             total_loss.backward()
@@ -182,13 +186,22 @@ class PhysicsInformedNN(torch.nn.Module):
             self.temp_losses = (total_loss, rans_loss, aerofoil_bc_loss, inlet_bc_loss, ic_loss, u_loss, v_loss, p_loss, nut_loss)
             
             return total_loss # Only return the total_loss, as required by LBFGS
-        
+
         for it in range(nIter):
-            # Perform the optimization step; closure computes the forward pass and gradients
-            self.optimizer.step(closure)
+            optimizer = self.adam_optimizer if it < it_Adam_to_LBGFS else self.lbfgs_optimizer
+
+            if it >= it_Adam_to_LBGFS:
+                optimizer.step(closure)
+            else:
+                # For Adam, perform a regular optimization step without closure
+                optimizer.zero_grad()
+                total_loss, rans_loss, aerofoil_bc_loss, inlet_bc_loss, ic_loss, u_loss, v_loss, p_loss, nut_loss = self.forward(self.coef_norm, self.x, self.y, self.x_normal, self.y_normal, self.sdf, self.gamma_1, self.gamma_2, self.gamma_3)
+                self.temp_losses = (total_loss, rans_loss, aerofoil_bc_loss, inlet_bc_loss, ic_loss, u_loss, v_loss, p_loss, nut_loss)
+                total_loss.backward()
+                optimizer.step()
 
             # Access the stored loss values for logging; no need to recompute the forward pass
-            if self.temp_losses:
+            if self.temp_losses:    
                 total_loss, rans_loss, aerofoil_bc_loss, inlet_bc_loss, ic_loss, u_loss, v_loss, p_loss, nut_loss = self.temp_losses
 
             if it % 1 == 0: # show iterations

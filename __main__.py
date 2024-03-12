@@ -13,7 +13,7 @@ from mpl_toolkits.axes_grid1 import make_axes_locatable
 import torch.nn as nn
 from torch.utils.tensorboard import SummaryWriter
 
-from plot import figsize, newfig, savefig, plot_solution, axisEqual3D, pgf_with_latex
+from plot import figsize, newfig, savefig, plot_solution, axisEqual3D, plot_predictions_vs_test, pgf_with_latex
 from dataset import Dataset
 from model import PhysicsInformedNN
 
@@ -31,7 +31,7 @@ if __name__ == "__main__":
     mpl.rcParams.update(pgf_with_latex)
 
     # NN Configuration
-    layers = [8, 64, 64, 64, 64, 4]
+    layers = [8, 128, 128, 128, 128, 128, 4]
 
     # Load Data (change path if needed)
     path = ["airFoil2D_SST_58.831_-3.563_2.815_4.916_10.078"]
@@ -56,7 +56,7 @@ if __name__ == "__main__":
 
     zero_normal_indices = np.where(SURF == True)[0]
     remaining_indices = np.setdiff1d(np.arange(N), zero_normal_indices)
-    N_train = int(0.5 * remaining_indices.shape[0])
+    N_train = int(0.3 * remaining_indices.shape[0])
 
     id_train = np.random.choice(remaining_indices, N_train, replace=False)
     id_train = np.union1d(id_train, zero_normal_indices)
@@ -86,9 +86,15 @@ if __name__ == "__main__":
                               x_train, y_train, x_normal_train, y_normal_train, 
                               sdf_train, gamma_1_train, gamma_2_train, gamma_3_train
                               )
-    model.train(10)
+    model.train(12)
 
     # Prediction
     u_pred, v_pred, p_pred, nut_pred = model.predict(x_test, y_test, x_normal_test, y_normal_test, 
                                            sdf_test, gamma_1_test, gamma_2_test, gamma_3_test
                                           )
+
+    # Plotting
+    plot_predictions_vs_test(x_test, y_test, u_pred, u_test, 'u')
+    plot_predictions_vs_test(x_test, y_test, v_pred, v_test, 'v')
+    plot_predictions_vs_test(x_test, y_test, p_pred, p_test, 'p')
+    plot_predictions_vs_test(x_test, y_test, nut_pred, nut_test, 'nut')

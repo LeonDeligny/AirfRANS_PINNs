@@ -2,6 +2,39 @@ import numpy as np, matplotlib.pyplot as plt
 
 from scipy.interpolate import griddata
 
+# Function to plot predictions, test data, and differences
+def plot_predictions_vs_test(x, y, pred, test, variable_name):
+    diff = pred - test
+
+    plt.figure(figsize=(18, 6))
+
+    # Plot predictions
+    plt.subplot(1, 3, 1)
+    plt.scatter(x, y, c=pred, cmap='viridis')
+    plt.colorbar()
+    plt.title(f'{variable_name} Predictions')
+    plt.xlabel('x')
+    plt.ylabel('y')
+
+    # Plot test data
+    plt.subplot(1, 3, 2)
+    plt.scatter(x, y, c=test, cmap='viridis')
+    plt.colorbar()
+    plt.title(f'{variable_name} Test Data')
+    plt.xlabel('x')
+    plt.ylabel('y')
+
+    # Plot differences
+    plt.subplot(1, 3, 3)
+    plt.scatter(x, y, c=diff, cmap='viridis')
+    plt.colorbar()
+    plt.title(f'{variable_name} Prediction - Test')
+    plt.xlabel('x')
+    plt.ylabel('y')
+
+    plt.tight_layout()
+    plt.show()
+
 def figsize(scale, nplots = 1):
     fig_width_pt = 390.0                          # Get this from LaTeX using \the\textwidth
     inches_per_pt = 1.0/72.27                       # Convert pt to inch
