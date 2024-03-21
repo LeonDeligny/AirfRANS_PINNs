@@ -2,12 +2,31 @@ import numpy as np, matplotlib.pyplot as plt
 
 from scipy.interpolate import griddata
 
+
+def plot_test(x, y, test, variable_name):
+    test = np.asarray(test).flatten()
+
+    plt.figure(figsize=(18, 6))
+    plt.scatter(x, y, c=test, cmap='viridis')
+    plt.colorbar()
+    plt.title(f'{variable_name} Test Data')
+    plt.xlabel('x')
+    plt.ylabel('y')
+
+    plt.tight_layout()
+    plt.savefig(f"/Users/leondeligny/Desktop/PDM/Plots/{variable_name}_test.png") 
+    plt.show()
+
+
 # Function to plot predictions, test data, and differences
-def plot_predictions_vs_test(x, y, pred, test, variable_name):
+def plot_predictions_vs_test(x, y, pred, test, variable_name, layers):
+    pred = np.asarray(pred).flatten()
+    test = np.asarray(test).flatten()
+
     diff = pred - test
 
     plt.figure(figsize=(18, 6))
-
+    
     # Plot predictions
     plt.subplot(1, 3, 1)
     plt.scatter(x, y, c=pred, cmap='viridis')
@@ -26,6 +45,7 @@ def plot_predictions_vs_test(x, y, pred, test, variable_name):
 
     # Plot differences
     plt.subplot(1, 3, 3)
+    
     plt.scatter(x, y, c=diff, cmap='viridis')
     plt.colorbar()
     plt.title(f'{variable_name} Prediction - Test')
@@ -33,6 +53,7 @@ def plot_predictions_vs_test(x, y, pred, test, variable_name):
     plt.ylabel('y')
 
     plt.tight_layout()
+    plt.savefig(f"/Users/leondeligny/Desktop/PDM/Plots/{variable_name}_diff_{layers}.png") 
     plt.show()
 
 def figsize(scale, nplots = 1):
