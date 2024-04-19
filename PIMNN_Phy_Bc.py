@@ -75,73 +75,49 @@ class PINN_Architecture(torch.nn.Module):
 
 
 class PIMNN_Phy_Bc(torch.nn.Module):
-    def __init__(self, df_train, df_freestream, df_aerofoil, mean_variance_dict, u_inlet, v_inlet, gamma_1, gamma_2, gamma_3):
+    def __init__(self, df_train, df_aerofoil, mean_variance_dict, len_list, u_inlet, v_inlet, gamma_1, gamma_2, gamma_3):
         super(PIMNN_Phy_Bc, self).__init__()
         self.x = torch.tensor(df_train['x'].astype(float).values, requires_grad=True).float().unsqueeze(1).to(device)
         self.y = torch.tensor(df_train['y'].astype(float).values, requires_grad=True).float().unsqueeze(1).to(device)
-        self.x_f = torch.tensor(df_freestream['x'].astype(float).values).float().unsqueeze(1).to(device)
-        self.y_f = torch.tensor(df_freestream['y'].astype(float).values).float().unsqueeze(1).to(device)
-        self.x_a = torch.tensor(df_aerofoil['x'].astype(float).values).float().unsqueeze(1).to(device)
-        self.y_a = torch.tensor(df_aerofoil['y'].astype(float).values).float().unsqueeze(1).to(device)
-
         self.sdf = torch.tensor(df_train['sdf'].astype(float).values).float().unsqueeze(1).to(device)
-        self.sdf_f = torch.tensor(df_freestream['sdf'].astype(float).values).float().unsqueeze(1).to(device)
-        self.sdf_a = torch.tensor(df_aerofoil['sdf'].astype(float).values).float().unsqueeze(1).to(device)
+        self.x_n_a = torch.tensor(df_aerofoil['x_n'].astype(float).values).float().unsqueeze(1).to(device) # Normals to aerofoil
+        self.y_n_a = torch.tensor(df_aerofoil['y_n'].astype(float).values).float().unsqueeze(1).to(device)
 
-        self.u_f = torch.tensor(df_freestream['u'].astype(float).values).float().unsqueeze(1).to(device)
-        self.u_a = torch.tensor(df_aerofoil['u'].astype(float).values).float().unsqueeze(1).to(device)
-
-        self.v_f = torch.tensor(df_freestream['v'].astype(float).values).float().unsqueeze(1).to(device)
-        self.v_a = torch.tensor(df_aerofoil['v'].astype(float).values).float().unsqueeze(1).to(device)
-        
-        self.nut_f = torch.tensor(df_freestream['nut'].astype(float).values).float().unsqueeze(1).to(device)
-        self.nut_a = torch.tensor(df_aerofoil['nut'].astype(float).values).float().unsqueeze(1).to(device)
-
-        self.p_f = torch.tensor(df_freestream['p'].astype(float).values).float().unsqueeze(1).to(device)
+        self.u = torch.tensor(df_train['u'].astype(float).values).float().unsqueeze(1).to(device)
+        self.v = torch.tensor(df_train['v'].astype(float).values).float().unsqueeze(1).to(device)
+        self.nut = torch.tensor(df_train['nut'].astype(float).values).float().unsqueeze(1).to(device)
+        self.p = torch.tensor(df_train['p'].astype(float).values).float().unsqueeze(1).to(device)
 
         self.u_inlet = torch.full((len(self.x), 1), fill_value=u_inlet).float().to(device)
-        self.u_inlet_f = torch.full((len(self.x_f), 1), fill_value=u_inlet).float().to(device)
-        self.u_inlet_a = torch.full((len(self.x_a), 1), fill_value=u_inlet).float().to(device)
-
         self.v_inlet = torch.full((len(self.x), 1), fill_value=v_inlet).float().to(device)
-        self.v_inlet_f = torch.full((len(self.x_f), 1), fill_value=v_inlet).float().to(device)
-        self.v_inlet_a = torch.full((len(self.x_a), 1), fill_value=v_inlet).float().to(device)
-
         self.gamma_1 = torch.full((len(self.x), 1), fill_value=gamma_1).float().to(device)
-        self.gamma_1_f = torch.full((len(self.x_f), 1), fill_value=gamma_1).float().to(device)
-        self.gamma_1_a = torch.full((len(self.x_a), 1), fill_value=gamma_1).float().to(device)
-
         self.gamma_2 = torch.full((len(self.x), 1), fill_value=gamma_2).float().to(device)
-        self.gamma_2_f = torch.full((len(self.x_f), 1), fill_value=gamma_2).float().to(device)
-        self.gamma_2_a = torch.full((len(self.x_a), 1), fill_value=gamma_2).float().to(device)
-
         self.gamma_3 = torch.full((len(self.x), 1), fill_value=gamma_3).float().to(device)
-        self.gamma_3_f = torch.full((len(self.x_f), 1), fill_value=gamma_3).float().to(device)
-        self.gamma_3_a = torch.full((len(self.x_a), 1), fill_value=gamma_3).float().to(device)
         
-        indim = 8
-        u_layers = [8, 256, 256, 1]
-        v_layers = [8, 256, 256, 1]
-        p_layers = [8, 256, 256, 1]
-        nut_layers = [8, 256, 256, 1]
+        u_layers = [8, 128, 128, 128, 128, 128, 128, 128, 128, 128, 1]
+        v_layers = [8, 128, 128, 128, 128, 128, 128, 128, 128, 128, 1]
+        p_layers = [8, 128, 128, 128, 128, 128, 128, 128, 128, 128, 1]
+        nut_layers = [8, 128, 128, 128, 128, 128, 128, 128, 128, 128, 1]
 
-        print(f"u_layers: {u_layers}")
-        print(f"v_layers: {v_layers}")
-        print(f"p_layers: {p_layers}")
-        print(f"nut_layers: {nut_layers}")
+        print(f"u layers: {u_layers}")
+        print(f"v layers: {v_layers}")
+        print(f"p layers: {p_layers}")
+        print(f"nut layers: {nut_layers}")
 
-        self.u_model = PINN_Architecture(u_layers, 1, 256, indim).to(device) 
-        self.v_model = PINN_Architecture(v_layers, 1, 256, indim).to(device)
-        self.p_model = PINN_Architecture(p_layers, 1, 256, indim).to(device)
-        self.nut_model = PINN_Architecture(nut_layers, 1, 256, indim).to(device)
+        self.u_model = self.create_model(u_layers)
+        self.v_model = self.create_model(v_layers)
+        self.p_model = self.create_model(p_layers)
+        self.nut_model = self.create_model(nut_layers)
+
+        # indim = 8
+        # self.u_model = PINN_Architecture(u_layers, 100, 1024, indim).to(device) 
+        # self.v_model = PINN_Architecture(v_layers, 100, 1024, indim).to(device)
+        # self.p_model = PINN_Architecture(p_layers, 100, 1024, indim).to(device)
+        # self.nut_model = PINN_Architecture(nut_layers, 100, 1024, indim).to(device)
     
         self.mean_variance_dict = mean_variance_dict
+        self.len_list = len_list
         self.loss_func = torch.nn.MSELoss()
-
-        self.lbfgs_optimizer_u_0 = torch.optim.LBFGS([{'params': self.u_model.parameters()}], line_search_fn='strong_wolfe') 
-        self.lbfgs_optimizer_v_0 = torch.optim.LBFGS([{'params': self.v_model.parameters()}], line_search_fn='strong_wolfe')     
-        self.lbfgs_optimizer_p_0 = torch.optim.LBFGS([{'params': self.p_model.parameters()}], line_search_fn='strong_wolfe')     
-        self.lbfgs_optimizer_nut_0 = torch.optim.LBFGS([{'params': self.nut_model.parameters()}], line_search_fn='strong_wolfe')
 
         self.lbfgs_optimizer_u = torch.optim.LBFGS([{'params': self.u_model.parameters()}], line_search_fn='strong_wolfe') 
         self.lbfgs_optimizer_v = torch.optim.LBFGS([{'params': self.v_model.parameters()}], line_search_fn='strong_wolfe')
@@ -150,6 +126,14 @@ class PIMNN_Phy_Bc(torch.nn.Module):
         
         self.writer = SummaryWriter(log_dir=f"logs/{datetime.now().strftime('%Y%m%d-%H%M%S')}")
 
+    def create_model(self, type_layers):
+        layers = []
+        for i in range(len(type_layers) - 1):
+            layers.append(torch.nn.Linear(type_layers[i], type_layers[i+1]))
+            if i != len(type_layers) - 2:
+                layers.append(torch.nn.Softplus(100))
+        return torch.nn.Sequential(*layers)
+    
     def fu_fv_ic_normalized_compute(self, mean_variance_dict, u, u_x, u_y, u_xx, u_yy, v, v_x, v_y, v_xx, v_yy, p_x, p_y, nut, nut_x, nut_y):
         f_u = (2 * (u * mean_variance_dict['u']['var'] + mean_variance_dict['u']['mean']) * mean_variance_dict['u']['var'] * u_x) / mean_variance_dict['x']['var'] \
             + ((u * mean_variance_dict['u']['var'] + mean_variance_dict['u']['mean']) * mean_variance_dict['v']['var'] * v_y) / mean_variance_dict['y']['var'] \
@@ -173,16 +157,29 @@ class PIMNN_Phy_Bc(torch.nn.Module):
             + ((mean_variance_dict['v']['var'] / mean_variance_dict['y']['var']) * v_y) # Incompressibility condition
 
         return f_u, f_v, ic
-        
-    def net_NS(self, mean_variance_dict, x, y, u_inlet, v_inlet, sdf, gamma_1, gamma_2, gamma_3, x_f, y_f, u_inlet_f, v_inlet_f, sdf_f, gamma_1_f, gamma_2_f, gamma_3_f, x_a, y_a, u_inlet_a, v_inlet_a, sdf_a, gamma_1_a, gamma_2_a, gamma_3_a):
-        inputs = torch.cat([x, y, u_inlet, v_inlet, sdf, gamma_1, gamma_2, gamma_3], dim=1)
-        inputs_f = torch.cat([x_f, y_f, u_inlet_f, v_inlet_f, sdf_f, gamma_1_f, gamma_2_f, gamma_3_f], dim=1)
-        inputs_a = torch.cat([x_a, y_a, u_inlet_a, v_inlet_a, sdf_a, gamma_1_a, gamma_2_a, gamma_3_a], dim=1)
+    
+    def bc_normalized_compute(self, mean_variance_dict, p_x_a, p_y_a, x_n_a, y_n_a):
+        x_n_a_normalized = (x_n_a * mean_variance_dict['x_n']['var'] + mean_variance_dict['x_n']['mean'])
+        y_n_a_normalized = (y_n_a * mean_variance_dict['y_n']['var'] + mean_variance_dict['y_n']['mean'])
 
-        u, u_f, u_a = self.u_model(inputs), self.u_model(inputs_f), self.u_model(inputs_a)
-        v, v_f, v_a = self.v_model(inputs), self.v_model(inputs_f), self.v_model(inputs_a)
-        p, p_f = self.p_model(inputs), self.p_model(inputs_f) # p = self.p_model(inputs)
-        nut, nut_f, nut_a = self.nut_model(inputs), self.nut_model(inputs_f), self.nut_model(inputs_a)
+        bc = mean_variance_dict['p']['var'] / torch.sqrt(x_n_a_normalized**2 + y_n_a_normalized**2) \
+              * (x_n_a_normalized * p_x_a / mean_variance_dict['x']['var'] \
+              + y_n_a_normalized * p_y_a / mean_variance_dict['y']['var']) \
+                
+        return bc
+        
+    def net_NS(self, mean_variance_dict, len_list, x_n_a, y_n_a, x, y, u_inlet, v_inlet, sdf, gamma_1, gamma_2, gamma_3):
+        inputs = torch.cat([x, y, u_inlet, v_inlet, sdf, gamma_1, gamma_2, gamma_3], dim=1)
+
+        u = self.u_model(inputs)
+        v = self.v_model(inputs)
+        p = self.p_model(inputs)
+        nut = self.nut_model(inputs)
+
+        u_f, u_a = u[:len_list[0], :], u[len_list[0]:len_list[0]+len_list[1],:]
+        v_f, v_a = v[:len_list[0], :], v[len_list[0]:len_list[0]+len_list[1],:]
+        p_f = p[:len_list[0], :]
+        nut_f, nut_a = nut[:len_list[0], :], nut[len_list[0]:len_list[0]+len_list[1],:]
 
         u_x = grad(u, x, grad_outputs=torch.ones_like(u), create_graph=True)[0]
         u_y = grad(u, y, grad_outputs=torch.ones_like(u), create_graph=True)[0]
@@ -197,25 +194,29 @@ class PIMNN_Phy_Bc(torch.nn.Module):
         p_x = grad(p, x, grad_outputs=torch.ones_like(p), create_graph=True)[0]
         p_y = grad(p, y, grad_outputs=torch.ones_like(p), create_graph=True)[0]
 
+        p_x_a = p_x[len_list[0]:len_list[0]+len_list[1],:] # Gradient of pressure on airfoil
+        p_y_a = p_y[len_list[0]:len_list[0]+len_list[1],:]
+
         nut_x = grad(nut, x, grad_outputs=torch.ones_like(nut), create_graph=True)[0]
         nut_y = grad(nut, y, grad_outputs=torch.ones_like(nut), create_graph=True)[0]
         
         f_u, f_v, ic = self.fu_fv_ic_normalized_compute(mean_variance_dict, u, u_x, u_y, u_xx, u_yy, v, v_x, v_y, v_xx, v_yy, p_x, p_y, nut, nut_x, nut_y)
+        bc = self.bc_normalized_compute(mean_variance_dict, p_x_a, p_y_a, x_n_a, y_n_a)
 
-        return u, v, p, nut, u_f, v_f, p_f, nut_f, u_a, v_a, nut_a, f_u, f_v, ic
+        return u, v, p, nut, u_f, v_f, p_f, nut_f, u_a, v_a, nut_a, f_u, f_v, ic, bc
 
-    def forward(self, mean_variance_dict, x, y, u_inlet, v_inlet, sdf, gamma_1, gamma_2, gamma_3, x_f, y_f, u_inlet_f, v_inlet_f, sdf_f, gamma_1_f, gamma_2_f, gamma_3_f, x_a, y_a, u_inlet_a, v_inlet_a, sdf_a, gamma_1_a, gamma_2_a, gamma_3_a):
-        _, _, _, _, \
+    def forward(self, mean_variance_dict, len_list, x_n_a, y_n_a, x, y, u_inlet, v_inlet, sdf, gamma_1, gamma_2, gamma_3):
+        u_pred, v_pred, p_pred, nut_pred, \
         u_f_pred, v_f_pred, p_f_pred, nut_f_pred, \
         u_a_pred, v_a_pred, nut_a_pred, \
-        f_u_pred, f_v_pred, ic_pred = self.net_NS(
-                                                    mean_variance_dict,
+        f_u_pred, f_v_pred, ic_pred, bc_pred = self.net_NS( 
+                                                    mean_variance_dict, len_list,
+                                                    x_n_a, y_n_a,
                                                     x, y, u_inlet, v_inlet, 
-                                                    sdf, gamma_1, gamma_2, gamma_3, 
-                                                    x_f, y_f, u_inlet_f, v_inlet_f, sdf_f, gamma_1_f, gamma_2_f, gamma_3_f, 
-                                                    x_a, y_a, u_inlet_a, v_inlet_a, sdf_a, gamma_1_a, gamma_2_a, gamma_3_a
-                                                )
+                                                    sdf, gamma_1, gamma_2, gamma_3
+                                                        )
         
+    
         f_u_loss, f_v_loss = self.loss_func(f_u_pred, torch.zeros_like(f_u_pred)), self.loss_func(f_v_pred, torch.zeros_like(f_v_pred))
         # rans_loss = f_u_loss + f_v_loss
         f_u_loss_norm, f_v_loss_norm = f_u_loss / (torch.abs(f_u_pred).mean() + 1e-8), f_v_loss / (torch.abs(f_v_pred).mean() + 1e-8)
@@ -224,20 +225,28 @@ class PIMNN_Phy_Bc(torch.nn.Module):
         ic_loss = self.loss_func(ic_pred, torch.zeros_like(ic_pred))
         ic_loss_norm = ic_loss / (torch.abs(ic_pred).mean() + 1e-8)
 
-        u_a_loss = self.loss_func(self.u_a, u_a_pred)
-        u_f_loss = self.loss_func(self.u_f, u_f_pred)
-        v_a_loss = self.loss_func(self.v_a, v_a_pred)
-        v_f_loss = self.loss_func(self.v_f, v_f_pred)
-        nut_f_loss = self.loss_func(self.nut_f, nut_f_pred)
-        nut_a_loss = self.loss_func(self.nut_a, nut_a_pred)
-        p_f_loss = self.loss_func(self.p_f, p_f_pred)
+        bc_loss = self.loss_func(bc_pred, torch.zeros_like(bc_pred))
+        bc_loss_norm = bc_loss / (torch.abs(bc_loss).mean() + 1e-8)
 
-        u_loss = u_f_loss + u_a_loss + ic_loss_norm + rans_loss_norm # ic_loss + rans_loss
-        v_loss = v_f_loss + v_a_loss + ic_loss_norm + rans_loss_norm # ic_loss + rans_loss
-        p_loss = p_f_loss + rans_loss_norm # rans_loss
-        nut_loss = nut_f_loss + nut_a_loss + rans_loss_norm # rans_loss
+        u_a_loss = self.loss_func(self.u[len_list[0]:len_list[0]+len_list[1],:], u_a_pred)
+        u_f_loss = self.loss_func(self.u[:len_list[0], :], u_f_pred)
+        v_a_loss = self.loss_func(self.v[len_list[0]:len_list[0]+len_list[1],:], v_a_pred)
+        v_f_loss = self.loss_func(self.v[:len_list[0], :], v_f_pred)
+        nut_f_loss = self.loss_func(self.nut[:len_list[0], :], nut_f_pred)
+        nut_a_loss = self.loss_func(self.nut[len_list[0]:len_list[0]+len_list[1],:], nut_a_pred)
+        p_f_loss = self.loss_func(self.p[:len_list[0], :], p_f_pred)
+        
+        u_train_loss = self.loss_func(self.u[len_list[0]:len_list[0]+len_list[1]+len_list[2],:], u_pred[len_list[0]:len_list[0]+len_list[1]+len_list[2],:]) 
+        v_train_loss = self.loss_func(self.v[len_list[0]:len_list[0]+len_list[1]+len_list[2],:], v_pred[len_list[0]:len_list[0]+len_list[1]+len_list[2],:])
+        p_train_loss = self.loss_func(self.p[len_list[0]:len_list[0]+len_list[1]+len_list[2],:], p_pred[len_list[0]:len_list[0]+len_list[1]+len_list[2],:]) 
+        nut_train_loss = self.loss_func(self.nut[len_list[0]:len_list[0]+len_list[1]+len_list[2],:], nut_pred[len_list[0]:len_list[0]+len_list[1]+len_list[2],:])
 
-        return u_loss, v_loss, p_loss, nut_loss, u_f_loss, v_f_loss, p_f_loss, nut_f_loss, u_a_loss, v_a_loss, nut_a_loss, f_u_loss, f_v_loss, ic_loss
+        u_loss = u_f_loss + u_a_loss + ic_loss_norm + rans_loss_norm # ic_loss + rans_loss # self.loss_func(self.u, u_pred) 
+        v_loss = v_f_loss + v_a_loss + ic_loss_norm + rans_loss_norm # ic_loss + rans_loss # self.loss_func(self.v, v_pred)
+        p_loss = p_f_loss + bc_loss_norm + rans_loss_norm # rans_loss # self.loss_func(self.p, p_pred) 
+        nut_loss = nut_f_loss + nut_a_loss + rans_loss_norm # rans_loss # self.loss_func(self.nut, nut_pred)
+
+        return u_loss, v_loss, p_loss, nut_loss, u_train_loss, v_train_loss, p_train_loss, nut_train_loss, f_u_loss, f_v_loss, ic_loss, bc_loss
 
 
     def train(self, nIter, checkpoint_path='path_to_checkpoint.pth'):
@@ -274,23 +283,23 @@ class PIMNN_Phy_Bc(torch.nn.Module):
 
         def compute_losses():
             # Compute all losses
-            losses = self.forward(self.mean_variance_dict, self.x, self.y, self.u_inlet, self.v_inlet, 
-                                self.sdf, self.gamma_1, self.gamma_2, self.gamma_3,
-                                self.x_f, self.y_f, self.u_inlet_f, self.v_inlet_f, 
-                                self.sdf_f, self.gamma_1_f, self.gamma_2_f, self.gamma_3_f,
-                                self.x_a, self.y_a, self.u_inlet_a, self.v_inlet_a, 
-                                self.sdf_a, self.gamma_1_a, self.gamma_2_a, self.gamma_3_a
+            losses = self.forward(self.mean_variance_dict, self.len_list,
+                                self.x_n_a, self.y_n_a,
+                                self.x, self.y, self.u_inlet, self.v_inlet, 
+                                self.sdf, self.gamma_1, self.gamma_2, self.gamma_3
                                 )
 
             # Unpack the losses and store them in a dictionary for easy access
-            (u_loss, v_loss, p_loss, nut_loss, u_f_loss, v_f_loss, p_f_loss, nut_f_loss, u_a_loss, v_a_loss, nut_a_loss, f_u_loss, f_v_loss, ic_loss) = losses
+            (u_loss, v_loss, p_loss, nut_loss, u_train_loss, v_train_loss, p_train_loss, nut_train_loss, f_u_loss, f_v_loss, ic_loss, bc_loss) = losses
 
             self.temp_losses = {'u_loss': u_loss, 'v_loss': v_loss, 'p_loss': p_loss, 'nut_loss': nut_loss}
 
-            self.display = {    
-                            'u_f_loss': u_f_loss, 'v_f_loss': v_f_loss, 'p_f_loss': p_f_loss, 'nut_f_loss': nut_f_loss, 
-                            'u_a_loss': u_a_loss, 'v_a_loss': v_a_loss, 'nut_a_loss': nut_a_loss, 
-                            'f_u_loss': f_u_loss, 'f_v_loss': f_v_loss, 'ic_loss': ic_loss
+            self.display = {
+                            'u_loss': u_loss, 'v_loss': v_loss, 'p_loss': p_loss, 'nut_loss': nut_loss,
+                            'u_train_loss': u_train_loss, 'v_train_loss': v_train_loss, 'p_train_loss': p_train_loss, 'nut_train_loss': nut_train_loss,
+                            # 'u_f_loss': u_f_loss, 'v_f_loss': v_f_loss, 'p_f_loss': p_f_loss, 'nut_f_loss': nut_f_loss, 
+                            # 'u_a_loss': u_a_loss, 'v_a_loss': v_a_loss, 'nut_a_loss': nut_a_loss, 
+                            'f_u_loss': f_u_loss, 'f_v_loss': f_v_loss, 'ic_loss': ic_loss, 'bc_loss': bc_loss
                         }
 
 
@@ -349,26 +358,31 @@ class PIMNN_Phy_Bc(torch.nn.Module):
                 for name, value in self.display.items():
                     print(f"{name}: {value.item()}")
 
-        checkpoint = {
-            'u_model_state_dict': self.u_model.state_dict(),
-            'lbfgs_optimizer_u_state_dict': self.lbfgs_optimizer_u.state_dict(),
+                if os.path.exists(checkpoint_path):
+                    os.remove(checkpoint_path)
+                
 
-            'v_model_state_dict': self.v_model.state_dict(),
-            'lbfgs_optimizer_v_state_dict': self.lbfgs_optimizer_v.state_dict(),
+                checkpoint = {
+                    'u_model_state_dict': self.u_model.state_dict(),
+                    'lbfgs_optimizer_u_state_dict': self.lbfgs_optimizer_u.state_dict(),
 
-            'p_model_state_dict': self.p_model.state_dict(),
-            'lbfgs_optimizer_p_state_dict': self.lbfgs_optimizer_p.state_dict(),
+                    'v_model_state_dict': self.v_model.state_dict(),
+                    'lbfgs_optimizer_v_state_dict': self.lbfgs_optimizer_v.state_dict(),
 
-            'nut_model_state_dict': self.nut_model.state_dict(),
-            'lbfgs_optimizer_nut_state_dict': self.lbfgs_optimizer_nut.state_dict(),
+                    'p_model_state_dict': self.p_model.state_dict(),
+                    'lbfgs_optimizer_p_state_dict': self.lbfgs_optimizer_p.state_dict(),
 
-            'iterations': nIter,
+                    'nut_model_state_dict': self.nut_model.state_dict(),
+                    'lbfgs_optimizer_nut_state_dict': self.lbfgs_optimizer_nut.state_dict(),
 
-            'rng_state': torch.get_rng_state(),
-        }
+                    'iterations': it,
 
-        torch.save(checkpoint, 'path_to_checkpoint.pth')
-        print(f"Saved checkpoint to '{checkpoint_path}' at iteration {it}")
+                    'rng_state': torch.get_rng_state(),
+                }
+
+                torch.save(checkpoint, checkpoint_path)
+                print(f"Saved checkpoint to '{checkpoint_path}' at iteration {it}")
+
 
 
     def predict(self, df_test, u_inlet, v_inlet, gamma_1, gamma_2, gamma_3):

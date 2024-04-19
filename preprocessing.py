@@ -64,17 +64,16 @@ def load_dataset(path, n_random_sampling=0):
         # freestream = pv.read('/notebooks/Dataset/' + s + '/' + s + '_freestream.vtp')
         freestream = pv.read(osp.join('Dataset', s, s + '_freestream.vtp'))
 
-        # u = (np.array([np.cos(alpha), np.sin(alpha)])*Uinf).reshape(1, 2)*np.ones_like(internal.point_data['U'][:, :1])
-        geom = -internal.point_data['implicit_distance'][:, None] # Signed distance function
-        # normal = np.zeros_like(u)
+        geom = -internal.point_data['implicit_distance'][:, None]
+        normal = np.zeros((internal.points.shape[0], 2)) 
 
-        # surf_bool = (internal.point_data['U'][:, 0] == 0)
-        # normal[surf_bool] = reorganize( aerofoil.points[:, :2], internal.points[surf_bool, :2], -aerofoil.point_data['Normals'][:, :2]) # no "Normal" feature in internal dataset
+        surf_bool = (internal.point_data['U'][:, 0] == 0)
+        normal[surf_bool] = reorganize(aerofoil.points[:, :2], internal.points[surf_bool, :2], -aerofoil.point_data['Normals'][:, :2]) # no "Normal" feature in internal dataset
 
         internal_attr = np.concatenate([   
                                             internal.points[:, :2],
                                             geom,
-                                            # normal, 
+                                            normal, 
                                             internal.point_data['U'][:, :2], 
                                             internal.point_data['p'][:, None], 
                                             internal.point_data['nut'][:, None],
@@ -90,9 +89,12 @@ def load_dataset(path, n_random_sampling=0):
         if n_random_sampling !=0 :
             points_sampled = np.array(sample_points(n_random_sampling))
             geom_sampled = compute_minimum_distances(points_sampled, aerofoil)[:, np.newaxis] 
+            normal_sampled = np.zeros_like(points_sampled)
+            
             sampled_attr = np.concatenate([
                                             points_sampled,
                                             geom_sampled,
+                                            normal_sampled,
 
                                             ], axis = -1)
             
@@ -106,24 +108,23 @@ def load_dataset(path, n_random_sampling=0):
         else:
             internal_attr_sample = internal_attr
 
-        # freestream_normals = np.zeros((freestream.points.shape[0], 2)) 
+        freestream_normals = np.zeros((freestream.points.shape[0], 2)) 
         freestream_geom = compute_minimum_distances(freestream, aerofoil)
         freestream_geom = freestream_geom[:, np.newaxis]
-        # freestream_u = (np.array([np.cos(alpha), np.sin(alpha)])*Uinf).reshape(1, 2)*np.ones_like(freestream.point_data['U'][:, :1])
 
         freestream_attr = np.concatenate([   
                                             freestream.points[:, :2],
                                             freestream_geom, 
-                                            # freestream_normals,
+                                            freestream_normals,
                                             freestream.point_data['U'][:, :2], 
                                             freestream.point_data['p'][:, None], 
                                             freestream.point_data['nut'][:, None],
                                         
                                         ], axis = -1)
                         
-        init_train = np.concatenate([freestream_attr[:, :3], aerofoil_attr[:, :3], internal_attr_sample[:, :3]], axis = 0) 
+        init_train = np.concatenate([freestream_attr[:, :5], aerofoil_attr[:, :5], internal_attr_sample[:, :5]], axis = 0) # 
    
-        target_train = np.concatenate([freestream_attr[:, 3:], aerofoil_attr[:, 3:], internal_attr_sample[:, 3:]], axis = 0)
+        target_train = np.concatenate([freestream_attr[:, 5:], aerofoil_attr[:, 5:], internal_attr_sample[:, 5:]], axis = 0)
 
         # Put everything in tensor
         x_train = torch.tensor(init_train, dtype = torch.float64)

@@ -1,3 +1,5 @@
+import datetime
+
 import numpy as np, matplotlib.pyplot as plt
 
 from scipy.interpolate import griddata
@@ -14,7 +16,10 @@ def plot_test(x, y, test, variable_name):
     plt.ylabel('y')
 
     plt.tight_layout()
-    plt.savefig(f"/Users/leondeligny/Desktop/PDM/Plots/{variable_name}_test.png") 
+    #plt.savefig(f"/Users/leondeligny/Desktop/PDM/Plots/{variable_name}_test.png") 
+    current_time = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+    plt.savefig(f"{variable_name}_{current_time}.png")
+
     plt.show()
 
 
@@ -54,6 +59,9 @@ def plot_predictions_vs_test(x, y, pred, test, variable_name, layers):
 
     plt.tight_layout()
     plt.savefig(f"/Users/leondeligny/Desktop/PDM/Plots/{variable_name}_diff_{layers}.png") 
+    current_time = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+    plt.savefig(f"{variable_name}_{current_time}.png")
+
     plt.show()
 
 def figsize(scale, nplots = 1):
