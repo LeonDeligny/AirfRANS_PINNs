@@ -116,7 +116,7 @@ class PIMNN_Phy_Bc(torch.nn.Module):
     
         self.mean_variance_dict = mean_variance_dict
         self.mse_loss = torch.nn.MSELoss()
-        self.log_loss = torch.nn.MSELoss()
+        self.log_loss = CustomLoss()
 
         self.lbfgs_optimizer_u = torch.optim.LBFGS([{'params': self.u_model.parameters()}], line_search_fn='strong_wolfe') 
         self.lbfgs_optimizer_v = torch.optim.LBFGS([{'params': self.v_model.parameters()}], line_search_fn='strong_wolfe')
@@ -165,7 +165,7 @@ class PIMNN_Phy_Bc(torch.nn.Module):
         p = self.p_model(inputs)
         nut = self.nut_model(inputs)
 
-        '''
+        
         u_x = grad(u, x, grad_outputs=torch.ones_like(u), create_graph=True)[0]
         u_y = grad(u, y, grad_outputs=torch.ones_like(u), create_graph=True)[0]
         u_xx = grad(u_x, x, grad_outputs=torch.ones_like(u_x), create_graph=True)[0]
@@ -183,36 +183,32 @@ class PIMNN_Phy_Bc(torch.nn.Module):
         nut_y = grad(nut, y, grad_outputs=torch.ones_like(nut), create_graph=True)[0]
         
         f_u, f_v, ic = self.fu_fv_ic_normalized_compute(mean_variance_dict, u, u_x, u_y, u_xx, u_yy, v, v_x, v_y, v_xx, v_yy, p_x, p_y, nut, nut_x, nut_y)
-        bc = self.bc_normalized_compute(mean_variance_dict, p_x_a, p_y_a, x_n_a, y_n_a)
-        '''
+        # bc = self.bc_normalized_compute(mean_variance_dict, p_x_a, p_y_a, x_n_a, y_n_a)
 
-        return u, v, p, nut
+        return u, v, p, nut, f_u, f_v, ic
 
     def forward(self, mean_variance_dict, x, y, u_inlet, v_inlet, sdf, gamma_1, gamma_2, gamma_3):
-        u_pred, v_pred, p_pred, nut_pred = self.net_NS( 
+        u_pred, v_pred, p_pred, nut_pred, f_u_pred, f_v_pred, ic_pred = self.net_NS( 
                                                     mean_variance_dict, 
                                                     x, y, u_inlet, v_inlet, 
                                                     sdf, gamma_1, gamma_2, gamma_3
                                                         )
         
     
-        '''
-        f_u_loss, f_v_loss = self.mse_loss(f_u_pred, torch.zeros_like(f_u_pred)), self.mse_loss(f_v_pred, torch.zeros_like(f_v_pred))
-        # rans_loss = f_u_loss + f_v_loss
-        f_u_loss_norm, f_v_loss_norm = f_u_loss / (torch.abs(f_u_pred).mean() + 1e-8), f_v_loss / (torch.abs(f_v_pred).mean() + 1e-8)
-        rans_loss_norm = f_u_loss_norm + f_v_loss_norm
-
-        ic_loss = self.mse_loss(ic_pred, torch.zeros_like(ic_pred))
-        ic_loss_norm = ic_loss / (torch.abs(ic_pred).mean() + 1e-8)
-
-        bc_loss = self.mse_loss(bc_pred, torch.zeros_like(bc_pred))
-        bc_loss_norm = bc_loss / (torch.abs(bc_loss).mean() + 1e-8)
-        '''
         
-        u_train_loss = self.mse_loss(self.u, u_pred) 
-        v_train_loss = self.mse_loss(self.v, v_pred)
-        p_train_loss = self.mse_loss(self.p, p_pred) 
-        nut_train_loss = self.log_loss(self.nut, nut_pred)
+        f_u_loss, f_v_loss = self.log_loss(f_u_pred, torch.zeros_like(f_u_pred)), self.mse_loss(f_v_pred, torch.zeros_like(f_v_pred))
+        rans_loss = f_u_loss + f_v_loss
+
+        ic_loss = self.log_loss(ic_pred, torch.zeros_like(ic_pred))
+
+        # bc_loss = self.mse_loss(bc_pred, torch.zeros_like(bc_pred))
+        # bc_loss_norm = bc_loss / (torch.abs(bc_loss).mean() + 1e-8)
+        
+        
+        u_train_loss = self.mse_loss(self.u, u_pred) + rans_loss + ic_loss
+        v_train_loss = self.mse_loss(self.v, v_pred) + rans_loss + ic_loss
+        p_train_loss = self.mse_loss(self.p, p_pred) + rans_loss
+        nut_train_loss = self.log_loss(self.nut, nut_pred) + rans_loss
 
         '''
         u_loss = u_f_loss + u_a_loss + ic_loss_norm + rans_loss_norm # ic_loss + rans_loss # self.mse_loss(self.u, u_pred) 
@@ -221,7 +217,7 @@ class PIMNN_Phy_Bc(torch.nn.Module):
         nut_loss = nut_f_loss + nut_a_loss + rans_loss_norm # rans_loss # self.mse_loss(self.nut, nut_pred)
         '''
 
-        return u_train_loss, v_train_loss, p_train_loss, nut_train_loss
+        return u_train_loss, v_train_loss, p_train_loss, nut_train_loss, f_u_loss, f_v_loss, ic_loss
 
 
     def train(self, nIter, checkpoint_path='path_to_checkpoint.pth'):
@@ -264,7 +260,7 @@ class PIMNN_Phy_Bc(torch.nn.Module):
                                 )
 
             # Unpack the losses and store them in a dictionary for easy access
-            (u_loss, v_loss, p_loss, nut_loss) = losses
+            (u_loss, v_loss, p_loss, nut_loss, f_u_loss, f_v_loss, ic_loss) = losses
 
             self.temp_losses = {'u_loss': u_loss, 'v_loss': v_loss, 'p_loss': p_loss, 'nut_loss': nut_loss}
 
@@ -273,7 +269,7 @@ class PIMNN_Phy_Bc(torch.nn.Module):
                             #'u_train_loss': u_train_loss, 'v_train_loss': v_train_loss, 'p_train_loss': p_train_loss, 'nut_train_loss': nut_train_loss,
                             # 'u_f_loss': u_f_loss, 'v_f_loss': v_f_loss, 'p_f_loss': p_f_loss, 'nut_f_loss': nut_f_loss, 
                             # 'u_a_loss': u_a_loss, 'v_a_loss': v_a_loss, 'nut_a_loss': nut_a_loss, 
-                            #'f_u_loss': f_u_loss, 'f_v_loss': f_v_loss, 'ic_loss': ic_loss, 'bc_loss': bc_loss
+                            'f_u_loss': f_u_loss, 'f_v_loss': f_v_loss, 'ic_loss': ic_loss, # 'bc_loss': bc_loss
                         }
 
 
