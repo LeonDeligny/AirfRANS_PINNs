@@ -58,7 +58,7 @@ if __name__ == "__main__":
     model.to(device)
 
     print(f"Started Training.")
-    model.train(501)
+    model.train(1)
     print(f"Finished Training.")
 
     # Prediction u_pred, v_pred, p_pred, nut_pred
