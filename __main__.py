@@ -43,7 +43,7 @@ if __name__ == "__main__":
         
     print("Datasets Loaded.")
 
-    from models.PIMNN_Phy_Bc import PIMNN_Phy_Bc
+    from PIMNN_Phy_Bc import PIMNN_Phy_Bc
     from plot import plot_predictions_vs_test, plot_test
 
     # Train the model
