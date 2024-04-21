@@ -17,39 +17,6 @@ P_ref = 1.013e5
 # Check for CUDA availability
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-
-
-class InputFeatures(torch.nn.Module):
-    """Base class for input features."""
-
-    def __init__(self) -> None:
-        super().__init__()
-        self.outdim = None
-
-class FourierFeatures(InputFeatures):
-    '''
-    Gaussian Fourier features, as proposed in Tancik et al., NeurIPS 2020.
-    '''
-
-    def __init__(self, scale, mapdim, indim) -> None:
-        super().__init__()
-        self.scale = scale
-        self.mapdim = mapdim
-        self.outdim = 2 * mapdim
-        self.indim = indim
-
-        B = torch.randn(self.mapdim, self.indim) * self.scale**2
-        self.register_buffer('B', B)
-
-    def forward(self, x):
-        x_proj = (2. * torch.pi * x) @ self.B.T
-        return torch.cat([torch.cos(x_proj), torch.sin(x_proj)], dim=-1)
-    
-    def __repr__(self):
-        return f"FourierFeatures(scale={self.scale}, mapdim={self.mapdim}, outdim={self.outdim})"
-
-
-
 class PINN_Architecture(torch.nn.Module):
     def __init__(self, architecture, fourier_scale, fourier_mapdim, indim):
         super(PINN_Architecture, self).__init__()
@@ -84,8 +51,8 @@ class CustomLoss(torch.nn.Module):
 class PIMNN_Phy_Bc(torch.nn.Module):
     def __init__(self, df_train, mean_variance_dict, u_inlet, v_inlet, gamma_1, gamma_2, gamma_3):
         super(PIMNN_Phy_Bc, self).__init__()
-        self.x = torch.tensor(df_train['x'].astype(float).values).float().unsqueeze(1).to(device)
-        self.y = torch.tensor(df_train['y'].astype(float).values).float().unsqueeze(1).to(device)
+        self.x = torch.tensor(df_train['x'].astype(float).values, requires_grad=True).float().unsqueeze(1).to(device)
+        self.y = torch.tensor(df_train['y'].astype(float).values, requires_grad=True).float().unsqueeze(1).to(device)
         self.sdf = torch.tensor(df_train['sdf'].astype(float).values).float().unsqueeze(1).to(device)
 
         self.u = torch.tensor(df_train['u'].astype(float).values).float().unsqueeze(1).to(device)
