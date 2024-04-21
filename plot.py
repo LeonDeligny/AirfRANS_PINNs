@@ -58,7 +58,7 @@ def plot_predictions_vs_test(x, y, pred, test, variable_name, layers):
     plt.ylabel('y')
 
     plt.tight_layout()
-    plt.savefig(f"/Users/leondeligny/Desktop/PDM/Plots/{variable_name}_diff_{layers}.png") 
+    plt.savefig(f"{variable_name}_diff_{layers}.png") 
     current_time = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
     plt.savefig(f"{variable_name}_{current_time}.png")
 
