@@ -66,10 +66,10 @@ class PIMNN_Phy_Bc(torch.nn.Module):
         self.gamma_2 = torch.full((len(self.x), 1), fill_value=gamma_2).float().to(device)
         self.gamma_3 = torch.full((len(self.x), 1), fill_value=gamma_3).float().to(device)
         
-        u_layers = [8, 512, 512, 512, 512, 512, 512, 1]
-        v_layers = [8, 512, 512, 512, 512, 512, 512, 1]
-        p_layers = [8, 512, 512, 512, 512, 512, 512, 1]
-        nut_layers = [8, 512, 512, 512, 512, 512, 512, 1]
+        u_layers = [8, 256, 256, 256, 256, 256, 256, 256, 256, 256, 1]
+        v_layers = [8, 256, 256, 256, 256, 256, 256, 256, 256, 256, 1]
+        p_layers = [8, 256, 256, 256, 256, 256, 256, 256, 256, 256, 1]
+        nut_layers = [8, 256, 256, 256, 256, 256, 256, 256, 256, 256, 1]
 
         print(f"u layers: {u_layers}")
         print(f"v layers: {v_layers}")
