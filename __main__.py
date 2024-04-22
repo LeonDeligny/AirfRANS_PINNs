@@ -22,7 +22,7 @@ torch.autograd.set_detect_anomaly(True)
 if __name__ == "__main__":
 
     # Load Data (change path if needed)
-    path = ["airFoil2D_SST_31.68_0.424_0.273_4.301_1.0_11.616"]
+    path = ["airFoil2D_SST_31.283_-4.156_0.919_6.98_14.32"]
     train_data, len_list = load_dataset(path, 
                                        n_random_sampling = 0
                                        )
